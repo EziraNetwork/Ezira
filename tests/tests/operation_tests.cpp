@@ -168,6 +168,20 @@ BOOST_AUTO_TEST_CASE( account_create_apply )
       tx.sign( init_account_priv_key, db->get_chain_id() );
       STEEM_REQUIRE_THROW( db->push_transaction( tx, 0 ), fc::exception );
       validate_database();
+
+      BOOST_TEST_MESSAGE( "--- Test account creation with temp account does not set recovery account" );
+      fund( STEEM_TEMP_ACCOUNT, ASSET( "310.000 TESTS" ) );
+      vest( STEEM_TEMP_ACCOUNT, ASSET( "10.000 TESTS" ) );
+      op.creator = STEEM_TEMP_ACCOUNT;
+      op.fee = ASSET( "300.000 TESTS" );
+      op.new_account_name = "bob";
+      tx.clear();
+      tx.operations.push_back( op );
+      db->push_transaction( tx, 0 );
+
+      BOOST_REQUIRE( db->get_account( "bob" ).recovery_account == account_name_type() );
+      validate_database();
+
    }
    FC_LOG_AND_RETHROW()
 }
@@ -6313,8 +6327,8 @@ BOOST_AUTO_TEST_CASE( delegate_vesting_shares_apply )
 
       auto& alice_comment = db->get_comment( "alice", string( "foo" ) );
       auto itr = vote_idx.find( std::make_tuple( alice_comment.id, bob_acc.id ) );
-      BOOST_REQUIRE( alice_comment.net_rshares.value == bob_acc.effective_vesting_shares().amount.value * ( old_voting_power - bob_acc.voting_power ) / STEEM_100_PERCENT - STEEM_VOTE_DUST_THRESHOLD);
-      BOOST_REQUIRE( itr->rshares == bob_acc.effective_vesting_shares().amount.value * ( old_voting_power - bob_acc.voting_power ) / STEEM_100_PERCENT - STEEM_VOTE_DUST_THRESHOLD );
+      BOOST_REQUIRE( alice_comment.net_rshares.value == db->get_effective_vesting_shares(bob_acc, VESTS_SYMBOL).amount.value * ( old_voting_power - bob_acc.voting_power ) / STEEM_100_PERCENT - STEEM_VOTE_DUST_THRESHOLD);
+      BOOST_REQUIRE( itr->rshares == db->get_effective_vesting_shares(bob_acc, VESTS_SYMBOL).amount.value * ( old_voting_power - bob_acc.voting_power ) / STEEM_100_PERCENT - STEEM_VOTE_DUST_THRESHOLD );
 
 
       generate_block();
